@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cheese Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .section {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .cheese-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .cheese-item {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+        .cheese-item:last-child {
+            border-bottom: none;
+        }
+        .cheese-name {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .cheese-price {
+            color: #2a6496;
+            font-weight: bold;
+        }
+        .cheese-desc {
+            color: #666;
+            margin: 5px 0;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        input, textarea {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button.delete {
+            background-color: #f44336;
+        }
+        button.update {
+            background-color: #2196F3;
+        }
+        .actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .error {
+            color: red;
+            margin: 5px 0;
+        }
+        .success {
+            color: green;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cheese Management System</h1>
+    
+    <div class="container">
+        <div class="section">
+            <h2>All Cheeses</h2>
+            <div class="cheese-list" id="cheeseList">
+                Loading cheeses...
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Add New Cheese</h2>
+            <form id="addCheeseForm">
+                <input type="text" id="name" placeholder="Cheese Name" required minlength="3" maxlength="30">
+                <textarea id="description" placeholder="Description" required minlength="3" maxlength="350"></textarea>
+                <input type="number" id="price" placeholder="Price" required min="1">
+                <button type="submit">Add Cheese</button>
+            </form>
+            <div id="addMessage"></div>
+            
+            <h2>Update Cheese</h2>
+            <form id="updateCheeseForm">
+                <input type="number" id="updateId" placeholder="Cheese ID" required>
+                <input type="text" id="updateName" placeholder="New Name (optional)" minlength="3" maxlength="30">
+                <textarea id="updateDescription" placeholder="New Description (optional)" minlength="3" maxlength="350"></textarea>
+                <input type="number" id="updatePrice" placeholder="New Price (optional)" min="1">
+                <button type="submit" class="update">Update Cheese</button>
+            </form>
+            <div id="updateMessage"></div>
+            
+            <h2>Delete Cheese</h2>
+            <form id="deleteCheeseForm">
+                <input type="number" id="deleteId" placeholder="Cheese ID" required>
+                <button type="submit" class="delete">Delete Cheese</button>
+            </form>
+            <div id="deleteMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load cheeses on page load
+            fetchCheeses();
+            
+            // Add cheese form
+            document.getElementById('addCheeseForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addCheese();
+            });
+            
+            // Update cheese form
+            document.getElementById('updateCheeseForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                updateCheese();
+            });
+            
+            // Delete cheese form
+            document.getElementById('deleteCheeseForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                deleteCheese();
+            });
+        });
+        
+        function fetchCheeses() {
+            fetch('http://localhost:1488/cheese')
+                .then(response => response.json())
+                .then(data => {
+                    const cheeseList = document.getElementById('cheeseList');
+                    if (data.length === 0) {
+                        cheeseList.innerHTML = '<p>No cheeses found</p>';
+                        return;
+                    }
+                    
+                    let html = '';
+                    data.forEach(cheese => {
+                        html += `
+                            <div class="cheese-item">
+                                <div class="cheese-name">${cheese.name}</div>
+                                <div class="cheese-price">$${cheese.price}</div>
+                                <div class="cheese-desc">${cheese.description}</div>
+                            </div>
+                        `;
+                    });
+                    cheeseList.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('cheeseList').innerHTML = '<p class="error">Error loading cheeses</p>';
+                });
+        }
+        
+        function addCheese() {
+            const name = document.getElementById('name').value;
+            const description = document.getElementById('description').value;
+            const price = document.getElementById('price').value;
+            const messageDiv = document.getElementById('addMessage');
+            
+            fetch('http://localhost:1488/cheeseCreate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    description: description,
+                    price: parseInt(price)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    messageDiv.innerHTML = `<p class="error">Error: ${data.error}</p>`;
+                } else {
+                    messageDiv.innerHTML = `<p class="success">Cheese added successfully!</p>`;
+                    document.getElementById('addCheeseForm').reset();
+                    fetchCheeses();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                messageDiv.innerHTML = `<p class="error">Error adding cheese</p>`;
+            });
+        }
+        
+        function updateCheese() {
+            const id = document.getElementById('updateId').value;
+            const name = document.getElementById('updateName').value;
+            const description = document.getElementById('updateDescription').value;
+            const price = document.getElementById('updatePrice').value;
+            const messageDiv = document.getElementById('updateMessage');
+            
+            let updateData = {};
+            if (name) updateData.name = name;
+            if (description) updateData.description = description;
+            if (price) updateData.price = parseInt(price);
+            
+            if (Object.keys(updateData).length === 0) {
+                messageDiv.innerHTML = `<p class="error">Please provide at least one field to update</p>`;
+                return;
+            }
+            
+            fetch(`http://localhost:1488/cheesePatch?id=${id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    messageDiv.innerHTML = `<p class="error">Error: ${data.error}</p>`;
+                } else {
+                    messageDiv.innerHTML = `<p class="success">Cheese updated successfully!</p>`;
+                    document.getElementById('updateCheeseForm').reset();
+                    fetchCheeses();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                messageDiv.innerHTML = `<p class="error">Error updating cheese</p>`;
+            });
+        }
+        
+        function deleteCheese() {
+            const id = document.getElementById('deleteId').value;
+            const messageDiv = document.getElementById('deleteMessage');
+            
+            fetch(`http://localhost:1488/cheeseDel?id=${id}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    messageDiv.innerHTML = `<p class="error">Error: ${data.error}</p>`;
+                } else {
+                    messageDiv.innerHTML = `<p class="success">${data.message} (ID: ${data.id})</p>`;
+                    document.getElementById('deleteCheeseForm').reset();
+                    fetchCheeses();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                messageDiv.innerHTML = `<p class="error">Error deleting cheese</p>`;
+            });
+        }
+    </script>
+</body>
+</html>
